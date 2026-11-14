@@ -1,0 +1,20 @@
+[project]
+name = "inspection-type-helper-bot"
+version = "0.1.0"
+description = "Entry assist bot for the VIP Inspector Portal (Selenium + BeautifulSoup)"
+authors = [
+    { name = "SawyerMade", email = "sawyermade0@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "beautifulsoup4>=4.15.0",
+    "python-dotenv>=1.2.4",
+    "selenium>=4.52.0",
+]
+
+[project.scripts]
+bot = "inspection_type_helper_bot:main"
+
+[build-system]
+requires = ["uv_build>=0.13.7,<0.14.0"]
+build-backend = "uv_build"

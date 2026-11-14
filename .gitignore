@@ -1,0 +1,35 @@
+# Secrets: the real login lives in .env; only the .env.example template is committed
+.env
+.env.*
+!.env.example
+
+# Persistent Chrome profile (holds the logged-in session cookies)
+.chrome-profile/
+
+# Debug output: page dumps and screenshots can contain portal data
+dumps/
+screenshots/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Logs
+*.log
+
+# A chromedriver binary, if you keep one in the project root
+/chromedriver
+/chromedriver.exe
+
+# OS / editor / local tool settings
+.DS_Store
+.idea/
+.vscode/
+.claude/settings.local.json
