@@ -391,8 +391,8 @@ def process_jurisdiction(driver: WebDriver, label: str, start_row: int = 0) -> i
 
         _click(driver, edit_button)
         field, modal = _wait_for_master_field(driver, row)
-        _paste(field, text, row)
-        print("     pasted - choose the rest and Save (Ctrl-C = pause menu)")
+        # _paste(field, text, row)  # disabled: don't paste into "Associated Inspection Master"
+        print("     modal open (paste disabled) - fill it in and Save (Ctrl-C = pause menu)")
 
         _wait_for_save(driver, modal, label, row)
         done += 1
