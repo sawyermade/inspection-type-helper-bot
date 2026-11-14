@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 
 import urllib3
 from selenium import webdriver
@@ -48,7 +49,10 @@ def build_driver(settings: Settings) -> webdriver.Chrome:
     # Run chromedriver (and therefore Chrome) in its own session. Otherwise a
     # Ctrl-C in the terminal is delivered to chromedriver as well and kills it,
     # leaving the bot with no browser to drive after you leave the pause menu.
-    popen_kw = {"start_new_session": True} if os.name == "posix" else {}
+    if os.name == "posix":
+        popen_kw = {"start_new_session": True}
+    else:  # Windows: a separate process group no longer receives the console's Ctrl-C
+        popen_kw = {"creation_flags": getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)}
 
     # With no explicit path, Selenium Manager downloads/caches a chromedriver
     # that matches the installed Chrome.
