@@ -125,7 +125,8 @@ After login it goes to `/admin`, then for each row of `todo.csv` opens
 `/admin/jurisdictions/<Id>` and works through that page's **Inspection Types** list:
 
 1. reads the INSPECTION TYPE text of a row and clicks its **Edit** button,
-2. pastes that text into **Associated Inspection Master** in the modal,
+2. (only with `--paste-type`) pastes that text into **Associated Inspection Master** in the
+   modal; by default it leaves the field alone,
 3. waits for you to choose the rest and **Save** (the bot never clicks Save or Delete),
 4. when the modal closes, does the next row; after the last row it opens the next
    jurisdiction on its own.
@@ -138,13 +139,39 @@ chromedriver runs in its own session, so the browser keeps going):
 | Enter | keep waiting |
 | `n` | skip the rest of this jurisdiction and go to the next |
 | `d` | save the page's HTML + screenshot to `dumps/` |
-| `q` | quit, and print the exact command to resume from that row |
+| `q` | quit (progress is already saved, see Resuming below) |
+
+### Resuming
+
+The bot saves its place after every completed row in `.resume.json` (gitignored), so quitting,
+a crash or a closed browser never loses your spot. It stores the **last completed** jurisdiction
+number and row number, both 1-based (the first one is 1, not 0):
+
+```json
+{"jurisdiction": 3, "row": 5, "code": "VOLU"}
+```
+
+- Just run `uv run bot` again: it continues at row 6 of jurisdiction 3.
+- A row counts as completed once its modal has closed (you saved it, or closed it).
+- Skipping a jurisdiction with `n` counts it as done, so a resume moves on to the next one.
+- If the saved position is past the last jurisdiction, the bot says everything was finished,
+  deletes the file and exits. Run `uv run bot` again to start over from the beginning.
+- If `todo.csv` has changed so the saved code no longer matches, or the file is damaged, the bot
+  refuses to guess and tells you to clear it.
+- To throw the saved progress away and start over, run `uv run bot --clear-resume`. It deletes
+  the file and exits without opening a browser.
 
 ```bash
-uv run bot --start PALM            # begin at a Code, a GUID, or a 1-based row number
+uv run bot                         # continue from the saved progress (or from the top if none)
+uv run bot --clear-resume          # forget the saved progress
+uv run bot --start PALM            # ignore the saved progress; begin at a Code, a GUID, or a 1-based number
 uv run bot --start PALM --row 12   # ...and at the 12th Inspection Types row of that jurisdiction
+uv run bot --paste-type            # also paste each row's text into Associated Inspection Master
 uv run bot --csv other.csv         # use a different file (columns: Id, DisplayName, Code)
 ```
+
+`--start` and `--row` override the saved progress for that run; the file is then updated as the
+run moves forward.
 
 If the list or modal isn't where the bot expects, it reports the problem, saves the page to
 `dumps/` (gitignored) and offers retry / next jurisdiction / quit instead of carrying on.
@@ -168,4 +195,5 @@ If the list or modal isn't where the bot expects, it reports the problem, saves 
 - `auth.py` - login state machine (BeautifulSoup page-state detection)
 - `jurisdictions.py` - reads `todo.csv`, builds each jurisdiction's URL
 - `inspection_types.py` - finds the Inspection Types list, drives the Edit modal
-- `assistant.py` - loops over jurisdictions, handles problems and the resume hints
+- `resume.py` - the saved-progress file (`.resume.json`)
+- `assistant.py` - loops over jurisdictions, handles problems, records progress

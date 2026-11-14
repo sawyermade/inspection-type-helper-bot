@@ -26,6 +26,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Callable
 
 from bs4 import BeautifulSoup
 from selenium.common.exceptions import (
@@ -372,29 +373,51 @@ def _wait_for_save(driver: WebDriver, modal: WebElement, label: str, row: int) -
 # --------------------------------------------------------------------------
 
 
-def process_jurisdiction(driver: WebDriver, label: str, start_row: int = 0) -> int:
-    """Run every Inspection Types row on the current page. Returns rows handled."""
+def process_jurisdiction(
+    driver: WebDriver,
+    label: str,
+    start_row: int = 0,
+    on_progress: Callable[[int], None] | None = None,
+    paste_type: bool = False,
+) -> int:
+    """Run every Inspection Types row on the current page. Returns rows handled.
+
+    ``on_progress(n)`` is called with the 1-based number of the last row now
+    completed: after every row, with 0 when the list is empty, and with the
+    row total when the rest of the jurisdiction is skipped or already done.
+    """
+    report = on_progress or (lambda rows_done: None)
     layout = wait_for_grid(driver)
     total = layout.row_count
     if total == 0:
         print("  no inspection types listed - nothing to do")
+        report(0)
         return 0
     if start_row >= total:
-        raise AutomationError(f"--row {start_row + 1} is past the last row ({total})", row=0)
+        print(f"  already completed through row {total} - nothing left here")
+        report(total)
+        return 0
 
     done = 0
     row = start_row
-    while row < total:
-        layout = wait_for_grid(driver)  # re-read: the list re-renders after each Save
-        text, edit_button = _read_row(driver, layout, row)
-        print(f"  row {row + 1}/{total}: {text}")
+    try:
+        while row < total:
+            layout = wait_for_grid(driver)  # re-read: the list re-renders after each Save
+            text, edit_button = _read_row(driver, layout, row)
+            print(f"  row {row + 1}/{total}: {text}")
 
-        _click(driver, edit_button)
-        field, modal = _wait_for_master_field(driver, row)
-        # _paste(field, text, row)  # disabled: don't paste into "Associated Inspection Master"
-        print("     modal open (paste disabled) - fill it in and Save (Ctrl-C = pause menu)")
+            _click(driver, edit_button)
+            field, modal = _wait_for_master_field(driver, row)
+            if paste_type:
+                _paste(field, text, row)
+            else:
+                print("     modal open (paste disabled) - fill it in and Save (Ctrl-C = pause menu)")
 
-        _wait_for_save(driver, modal, label, row)
-        done += 1
-        row += 1
+            _wait_for_save(driver, modal, label, row)
+            done += 1
+            row += 1
+            report(row)
+    except SkipJurisdiction:
+        report(total)  # skipped on purpose: a resume should move on to the next jurisdiction
+        raise
     return done

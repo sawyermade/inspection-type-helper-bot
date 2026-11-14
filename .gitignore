@@ -6,6 +6,10 @@
 # Persistent Chrome profile (holds the logged-in session cookies)
 .chrome-profile/
 
+# Saved progress (where the last run stopped); local to this machine
+.resume.json
+.resume.tmp
+
 # Debug output: page dumps and screenshots can contain portal data
 dumps/
 screenshots/

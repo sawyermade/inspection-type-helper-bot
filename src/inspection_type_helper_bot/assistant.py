@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.remote.webdriver import WebDriver
 
+from . import resume
 from .auth import ensure_logged_in
 from .browser import BROWSER_GONE
 from .config import Settings
@@ -63,9 +64,15 @@ def _failure_menu() -> str:
             return answer
 
 
-def _resume_hint(item: Jurisdiction, row: int) -> str:
-    hint = f"uv run bot --start {item.code}"
-    return hint + (f" --row {row + 1}" if row else "")
+_SAVED = "Progress is saved - run `uv run bot` to continue where you left off."
+
+
+def _record(jurisdiction_number: int, rows_done: int, code: str) -> None:
+    """Remember the last completed position (both numbers 1-based) for the next run."""
+    try:
+        resume.save(resume.Progress(jurisdiction_number, rows_done, code))
+    except OSError as exc:  # never let a full disk stop the actual work
+        log.warning("Couldn't save progress (%s)", exc)
 
 
 def run(
@@ -74,6 +81,7 @@ def run(
     jurisdictions: list[Jurisdiction],
     start: int = 0,
     start_row: int = 0,
+    paste_type: bool = False,
 ) -> None:
     go_to_start_page(driver, settings)
 
@@ -87,12 +95,18 @@ def run(
         print(f"\n{label}")
         try:
             open_jurisdiction(driver, settings, item)
-            done = process_jurisdiction(driver, label, start_row=row)
+            done = process_jurisdiction(
+                driver,
+                label,
+                start_row=row,
+                paste_type=paste_type,
+                on_progress=lambda rows_done, n=index + 1, c=item.code: _record(n, rows_done, c),
+            )
             print(f"  finished - {done} row(s)")
         except SkipJurisdiction:
             print("  skipped the rest of this jurisdiction")
-        except StopRun as stop:
-            print(f"\nStopped. Resume with: {_resume_hint(item, stop.row)}")
+        except StopRun:
+            print(f"\nStopped. {_SAVED}")
             return
         except AutomationError as exc:
             print(f"  PROBLEM: {exc}")
@@ -105,15 +119,17 @@ def run(
                 row = exc.row
                 continue
             if choice == "q":
-                print(f"\nStopped. Resume with: {_resume_hint(item, exc.row)}")
+                print(f"\nStopped. {_SAVED}")
                 return
         except BROWSER_GONE as exc:
             # The browser window was closed, or chromedriver died.
             log.error("Lost contact with the browser (%s) at %s", type(exc).__name__, label)
-            print(f"Resume with: {_resume_hint(item, row)}")
+            print(_SAVED)
             return
 
         row = 0
         index += 1
 
+    # One past the end: the next run reports "finished" and clears the file.
+    _record(total + 1, 0, "")
     print(f"\nAll {total} jurisdictions done.")
